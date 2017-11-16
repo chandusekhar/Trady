@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Trady.Analysis.Infrastructure;
 using Trady.Core;
+using Trady.Core.Infrastructure;
 
 namespace Trady.Analysis.Indicator
 {
@@ -10,9 +11,9 @@ namespace Trady.Analysis.Indicator
     {
         public class Full<TInput, TOutput> : AnalyzableBase<TInput, (decimal High, decimal Low, decimal Close), (decimal? K, decimal? D, decimal? J), TOutput>
         {
-            readonly FastByTuple _fastSto;
+            private readonly FastByTuple _fastSto;
 
-            public Full(IEnumerable<TInput> inputs, Func<TInput, (decimal High, decimal Low, decimal Close)> inputMapper, Func<TInput, (decimal? K, decimal? D, decimal? J), TOutput> outputMapper, int periodCount, int smaPeriodCountK, int smaPeriodCountD) : base(inputs, inputMapper, outputMapper)
+            public Full(IEnumerable<TInput> inputs, Func<TInput, (decimal High, decimal Low, decimal Close)> inputMapper, int periodCount, int smaPeriodCountK, int smaPeriodCountD) : base(inputs, inputMapper)
             {
                 _fastSto = new FastByTuple(inputs.Select(inputMapper), periodCount, smaPeriodCountK);
 
@@ -27,27 +28,26 @@ namespace Trady.Analysis.Indicator
 
             public int SmaPeriodCountD { get; }
 
-            protected override (decimal? K, decimal? D, decimal? J) ComputeByIndexImpl(IEnumerable<(decimal High, decimal Low, decimal Close)> mappedInputs, int index)
+            protected override (decimal? K, decimal? D, decimal? J) ComputeByIndexImpl(IReadOnlyList<(decimal High, decimal Low, decimal Close)> mappedInputs, int index)
             {
-                var d = _fastSto[index].D;
-                Func<int, decimal?> dFunc = i => _fastSto[index - SmaPeriodCountD + i + 1].D;
-                decimal? dAvg = index >= SmaPeriodCountK - 1 ? Enumerable.Range(0, SmaPeriodCountD).Average(i => dFunc(i)) : null;
-                return (d, dAvg, 3 * d - 2 * dAvg);
+                Func<int, decimal?> dFunc = i => _fastSto[i].D;
+                decimal? dAvg = index >= SmaPeriodCountD - 1 ? Enumerable.Range(index - SmaPeriodCountD + 1, SmaPeriodCountD).Average(dFunc) : null;
+				return (dFunc(index), dAvg, 3 * dFunc(index) - 2 * dAvg);
             }
         }
 
         public class FullByTuple : Full<(decimal High, decimal Low, decimal Close), (decimal? K, decimal? D, decimal? J)>
         {
-            public FullByTuple(IEnumerable<(decimal High, decimal Low, decimal Close)> inputs, int periodCount, int smaPeriodCountK, int smaPeriodCountD) 
-                : base(inputs, i => i, (i, otm) => otm, periodCount, smaPeriodCountK, smaPeriodCountD)
+            public FullByTuple(IEnumerable<(decimal High, decimal Low, decimal Close)> inputs, int periodCount, int smaPeriodCountK, int smaPeriodCountD)
+                : base(inputs, i => i, periodCount, smaPeriodCountK, smaPeriodCountD)
             {
             }
         }
 
-        public class Full : Full<Candle, AnalyzableTick<(decimal? K, decimal? D, decimal? J)>>
+        public class Full : Full<IOhlcv, AnalyzableTick<(decimal? K, decimal? D, decimal? J)>>
         {
-            public Full(IEnumerable<Candle> inputs, int periodCount, int smaPeriodCountK, int smaPeriodCountD) 
-                : base(inputs, i => (i.High, i.Low, i.Close), (i, otm) => new AnalyzableTick<(decimal? K, decimal? D, decimal? J)>(i.DateTime, otm), periodCount, smaPeriodCountK, smaPeriodCountD)
+            public Full(IEnumerable<IOhlcv> inputs, int periodCount, int smaPeriodCountK, int smaPeriodCountD)
+                : base(inputs, i => (i.High, i.Low, i.Close), periodCount, smaPeriodCountK, smaPeriodCountD)
             {
             }
         }

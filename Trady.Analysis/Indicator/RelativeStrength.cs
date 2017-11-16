@@ -3,61 +3,61 @@ using System.Collections.Generic;
 using System.Linq;
 using Trady.Analysis.Infrastructure;
 using Trady.Core;
+using Trady.Core.Infrastructure;
 
 namespace Trady.Analysis.Indicator
 {
-    public class RelativeStrength<TInput, TOutput> : AnalyzableBase<TInput, decimal, decimal?, TOutput>
+    public class RelativeStrength<TInput, TOutput> : NumericAnalyzableBase<TInput, decimal?, TOutput>
     {
-        ClosePriceChangeByTuple _closePriceChange;
-        GenericExponentialMovingAverage _uEma, _dEma;
+        private readonly PositiveDifferenceByTuple _u;
+        private readonly NegativeDifferenceByTuple _d;
 
-        public RelativeStrength(IEnumerable<TInput> inputs, Func<TInput, decimal> inputMapper, Func<TInput, decimal?, TOutput> outputMapper, int periodCount) : base(inputs, inputMapper, outputMapper)
+        private readonly GenericMovingAverage _dEma;
+        private readonly GenericMovingAverage _uEma;
+
+        public RelativeStrength(IEnumerable<TInput> inputs, Func<TInput, decimal?> inputMapper, int periodCount) : base(inputs, inputMapper)
         {
-            _closePriceChange = new ClosePriceChangeByTuple(inputs.Select(inputMapper));
-
-            Func<int, decimal?> u = i => i > 0 ? Math.Max(_closePriceChange[i].Value, 0) : (decimal?)null;
-            Func<int, decimal?> l = i => i > 0 ? Math.Abs(Math.Min(_closePriceChange[i].Value, 0)) : (decimal?)null;
-
-            _uEma = new GenericExponentialMovingAverage(
-                periodCount,
-                i => i > 0 ? Enumerable.Range(i - PeriodCount + 1, PeriodCount).Average(j => u(j)) : null,
-                i => u(i),
-                i => 1.0m / periodCount,
-                inputs.Count());
-
-            _dEma = new GenericExponentialMovingAverage(
-                periodCount,
-                i => i > 0 ? Enumerable.Range(i - PeriodCount + 1, PeriodCount).Average(j => l(j)) : null,
-                i => l(i),
-                i => 1.0m / periodCount,
-                inputs.Count());
-
             PeriodCount = periodCount;
+
+            _u = new PositiveDifferenceByTuple(inputs.Select(inputMapper), 1);
+            _d = new NegativeDifferenceByTuple(inputs.Select(inputMapper), 1);
+
+            _uEma = new GenericMovingAverage(
+                periodCount,
+                i => Enumerable.Range(i - PeriodCount + 1, PeriodCount).Average(j => _u[j]),
+                i => _u[i],
+                Smoothing.Mma(periodCount),
+                inputs.Count());
+
+            _dEma = new GenericMovingAverage(
+                periodCount,
+                i => Enumerable.Range(i - PeriodCount + 1, PeriodCount).Average(j => _d[j]),
+                i => _d[i],
+                Smoothing.Mma(periodCount),
+                inputs.Count());
         }
 
         public int PeriodCount { get; }
 
-        protected override decimal? ComputeByIndexImpl(IEnumerable<decimal> mappedInputs, int index)
+        protected override decimal? ComputeByIndexImpl(IReadOnlyList<decimal?> mappedInputs, int index)
         {
-            var uEma = _uEma[index];
             var dEma = _dEma[index];
-            var result = uEma / dEma;
-            return result;
+            return dEma.HasValue && dEma != 0 ? _uEma[index] / dEma : null;
         }
     }
 
-    public class RelativeStrengthByTuple : RelativeStrength<decimal, decimal?>
+    public class RelativeStrengthByTuple : RelativeStrength<decimal?, decimal?>
     {
-        public RelativeStrengthByTuple(IEnumerable<decimal> inputs, int periodCount) 
-            : base(inputs, i => i, (i, otm) => otm, periodCount)
+        public RelativeStrengthByTuple(IEnumerable<decimal?> inputs, int periodCount)
+            : base(inputs, i => i, periodCount)
         {
         }
     }
 
-    public class RelativeStrength : RelativeStrength<Candle, AnalyzableTick<decimal?>>
+    public class RelativeStrength : RelativeStrength<IOhlcv, AnalyzableTick<decimal?>>
     {
-        public RelativeStrength(IEnumerable<Candle> inputs, int periodCount) 
-            : base(inputs, i => i.Close, (i, otm) => new AnalyzableTick<decimal?>(i.DateTime, otm), periodCount)
+        public RelativeStrength(IEnumerable<IOhlcv> inputs, int periodCount)
+            : base(inputs, i => i.Close, periodCount)
         {
         }
     }

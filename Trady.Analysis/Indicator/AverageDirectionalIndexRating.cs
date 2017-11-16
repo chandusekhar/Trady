@@ -3,14 +3,16 @@ using System.Collections.Generic;
 using System.Linq;
 using Trady.Analysis.Infrastructure;
 using Trady.Core;
+using Trady.Core.Infrastructure;
 
 namespace Trady.Analysis.Indicator
 {
-    public class AverageDirectionalIndexRating<TInput, TOutput> : AnalyzableBase<TInput, (decimal High, decimal Low, decimal Close), decimal?, TOutput>
+    public class AverageDirectionalIndexRating<TInput, TOutput> : NumericAnalyzableBase<TInput, (decimal High, decimal Low, decimal Close), TOutput>
     {
-        readonly AverageDirectionalIndexByTuple _adx;
+        private readonly AverageDirectionalIndexByTuple _adx;
 
-        public AverageDirectionalIndexRating(IEnumerable<TInput> inputs, Func<TInput, (decimal High, decimal Low, decimal Close)> inputMapper, Func<TInput, decimal?, TOutput> outputMapper, int periodCount, int adxrPeriodCount) : base(inputs, inputMapper, outputMapper)
+        public AverageDirectionalIndexRating(IEnumerable<TInput> inputs, Func<TInput, (decimal High, decimal Low, decimal Close)> inputMapper, int periodCount, int adxrPeriodCount)
+            : base(inputs, inputMapper)
         {
             _adx = new AverageDirectionalIndexByTuple(inputs.Select(inputMapper), periodCount);
 
@@ -22,22 +24,22 @@ namespace Trady.Analysis.Indicator
 
         public int AdxrPeriodCount { get; }
 
-        protected override decimal? ComputeByIndexImpl(IEnumerable<(decimal High, decimal Low, decimal Close)> mappedInputs, int index)
+        protected override decimal? ComputeByIndexImpl(IReadOnlyList<(decimal High, decimal Low, decimal Close)> mappedInputs, int index)
             => index >= AdxrPeriodCount ? (_adx[index] + _adx[index - AdxrPeriodCount]) / 2 : null;
     }
 
     public class AverageDirectionalIndexRatingByTuple : AverageDirectionalIndexRating<(decimal High, decimal Low, decimal Close), decimal?>
     {
         public AverageDirectionalIndexRatingByTuple(IEnumerable<(decimal High, decimal Low, decimal Close)> inputs, int periodCount, int adxrPeriodCount)
-            : base(inputs, i => i, (i, otm) => otm, periodCount, adxrPeriodCount)
+            : base(inputs, i => i, periodCount, adxrPeriodCount)
         {
         }
     }
 
-    public class AverageDirectionalIndexRating : AverageDirectionalIndexRating<Candle, AnalyzableTick<decimal?>>
+    public class AverageDirectionalIndexRating : AverageDirectionalIndexRating<IOhlcv, AnalyzableTick<decimal?>>
     {
-        public AverageDirectionalIndexRating(IEnumerable<Candle> inputs, int periodCount, int adxrPeriodCount)
-            : base(inputs, i => (i.High, i.Low, i.Close), (i, otm) => new AnalyzableTick<decimal?>(i.DateTime, otm), periodCount, adxrPeriodCount)
+        public AverageDirectionalIndexRating(IEnumerable<IOhlcv> inputs, int periodCount, int adxrPeriodCount)
+            : base(inputs, i => (i.High, i.Low, i.Close), periodCount, adxrPeriodCount)
         {
         }
     }

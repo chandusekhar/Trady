@@ -1,34 +1,47 @@
-﻿using System;
+﻿using System.Collections;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Trady.Core.Infrastructure
 {
     public interface IAnalyzable
     {
-        // Intentionally blank, marker interface for indicator construction
+        IEnumerable Compute(int? startIndex = null, int? endIndex = null);
+
+        IEnumerable Compute(IEnumerable<int> indexes);
+
+        (object Prev, object Current, object Next) ComputeNeighbour(int index);
+
+        object this[int i] { get; }
     }
 
-    public interface IAnalyzable<TInput, TOutput> : IAnalyzable
+    public interface IAnalyzable<TOutput> : IAnalyzable
     {
         /// <summary>
-        /// Gets the inputs.
-        /// </summary>
-        /// <value>The inputs.</value>
-        IEnumerable<TInput> Inputs { get; }
-
-        /// <summary>
-        /// Compute the target output list by the specified startIndex and endIndex.
+        /// Compute the full list by the specified startIndex and endIndex.
         /// </summary>
         /// <returns>The computed outputs.</returns>
         /// <param name="startIndex">Start index.</param>
         /// <param name="endIndex">End index.</param>
-        IList<TOutput> Compute(int? startIndex = null, int? endIndex = null);
+        new IReadOnlyList<TOutput> Compute(int? startIndex = null, int? endIndex = null);
+
+		/// <summary>
+		/// Compute the target list by a list of index
+		/// </summary>
+		/// <returns>The select.</returns>
+		/// <param name="indexes">Indexes.</param>
+		new IReadOnlyList<TOutput> Compute(IEnumerable<int> indexes);
+
+        /// <summary>
+        /// Compute the prev & the current by an index
+        /// </summary>
+        /// <returns>The compute.</returns>
+        /// <param name="index">Index.</param>
+        new (TOutput Prev, TOutput Current, TOutput Next) ComputeNeighbour(int index);
 
         /// <summary>
         /// Gets the <see cref="T:Trady.Core.Infrastructure.IAnalyzable2`2"/> at the specified index.
         /// </summary>
         /// <param name="i">Index.</param>
-		TOutput this[int i] { get; }
+		new TOutput this[int i] { get; }
     }
 }

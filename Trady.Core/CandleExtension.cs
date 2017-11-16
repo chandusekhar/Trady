@@ -2,61 +2,62 @@
 using System.Collections.Generic;
 using System.Linq;
 using Trady.Core.Exception;
+using Trady.Core.Infrastructure;
 using Trady.Core.Period;
 
 namespace Trady.Core
 {
-    public static class CandleExtension
+    public static class IOhlcvDataExtension
     {
-        public static decimal GetUpperShadow(this Candle candle) => candle.Open < candle.Close ? candle.High - candle.Close : candle.High - candle.Open;
+        public static decimal GetUpperShadow(this IOhlcv candle) => candle.Open < candle.Close ? candle.High - candle.Close : candle.High - candle.Open;
 
-        public static decimal GetLowerShadow(this Candle candle) => candle.Open < candle.Close ? candle.Open - candle.Low : candle.Close - candle.Low;
+        public static decimal GetLowerShadow(this IOhlcv candle) => candle.Open < candle.Close ? candle.Open - candle.Low : candle.Close - candle.Low;
 
-        public static decimal GetBody(this Candle candle) => Math.Abs(candle.Open - candle.Close);
+        public static decimal GetBody(this IOhlcv candle) => Math.Abs(candle.Open - candle.Close);
 
-        public static bool IsBullish(this Candle candle) => candle.Open - candle.Close > 0;
+        public static bool IsBull(this IOhlcv candle) => candle.Open - candle.Close > 0;
 
-        public static bool IsBearish(this Candle candle) => candle.Open - candle.Close < 0;
+        public static bool IsBear(this IOhlcv candle) => candle.Open - candle.Close < 0;
 
         #region candle list transformation
 
-        public static IList<Candle> Transform<TSourcePeriod, TTargetPeriod>(this IList<Candle> candles)
+        public static IReadOnlyList<IOhlcv> Transform<TSourcePeriod, TTargetPeriod>(this IEnumerable<IOhlcv> candles)
             where TSourcePeriod : IPeriod
             where TTargetPeriod : IPeriod
         {
             if (typeof(TSourcePeriod).Equals(typeof(TTargetPeriod)))
-                return candles;
+                return candles.ToList();
 
-            if (!IsTimeframesValid<TSourcePeriod>(candles, out Candle err))
+            if (!IsTimeframesValid<TSourcePeriod>(candles, out IOhlcv err))
                 throw new InvalidTimeframeException(err.DateTime);
 
             if (!IsTransformationValid<TSourcePeriod, TTargetPeriod>())
                 throw new InvalidTransformationException(typeof(TSourcePeriod), typeof(TTargetPeriod));
 
-            var outCandles = new List<Candle>();
+            var outIOhlcvDatas = new List<IOhlcv>();
             var periodInstance = Activator.CreateInstance<TTargetPeriod>();
 
-            DateTime startTime = candles.First().DateTime;
+            var startTime = candles.First().DateTime;
             while (startTime <= candles.Last().DateTime)
             {
                 var nextStartTime = periodInstance.NextTimestamp(startTime);
                 if (periodInstance.IsTimestamp(startTime))
                 {
-                    var outCandle = ComputeCandle(candles, startTime, nextStartTime);
-                    if (outCandle != null)
-                        outCandles.Add(outCandle);
+                    var outIOhlcvData = ComputeIOhlcvData(candles, startTime, nextStartTime);
+                    if (outIOhlcvData != null)
+                        outIOhlcvDatas.Add(outIOhlcvData);
                 }
                 startTime = nextStartTime;
             }
 
-            return outCandles;
+            return outIOhlcvDatas;
         }
 
-        private static bool IsTimeframesValid<TPeriod>(IList<Candle> candles, out Candle err)
+        private static bool IsTimeframesValid<TPeriod>(IEnumerable<IOhlcv> candles, out IOhlcv err)
             where TPeriod : IPeriod
         {
             var periodInstance = Activator.CreateInstance<TPeriod>();
-            err = default(Candle);
+            err = default(IOhlcv);
             for (int i = 0; i < candles.Count() - 1; i++)
             {
                 var candleEndTime = periodInstance.NextTimestamp(candles.ElementAt(i).DateTime);
@@ -90,7 +91,7 @@ namespace Trady.Core
             return true;
         }
 
-        private static Candle ComputeCandle(IList<Candle> candles, DateTime startTime, DateTime endTime)
+        private static IOhlcv ComputeIOhlcvData(IEnumerable<IOhlcv> candles, DateTimeOffset startTime, DateTimeOffset endTime)
         {
             var candle = candles.Where(c => c.DateTime >= startTime && c.DateTime < endTime);
             if (candle.Any())

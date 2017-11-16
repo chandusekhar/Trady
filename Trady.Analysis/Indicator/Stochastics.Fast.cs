@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Trady.Analysis.Infrastructure;
 using Trady.Core;
+using Trady.Core.Infrastructure;
 
 namespace Trady.Analysis.Indicator
 {
@@ -10,9 +11,9 @@ namespace Trady.Analysis.Indicator
     {
         public class Fast<TInput, TOutput> : AnalyzableBase<TInput, (decimal High, decimal Low, decimal Close), (decimal? K, decimal? D, decimal? J), TOutput>
         {
-            readonly RawStochasticsValueByTuple _rsv;
+            private readonly RawStochasticsValueByTuple _rsv;
 
-            public Fast(IEnumerable<TInput> inputs, Func<TInput, (decimal High, decimal Low, decimal Close)> inputMapper, Func<TInput, (decimal? K, decimal? D, decimal? J), TOutput> outputMapper, int periodCount, int smaPeriodCount) : base(inputs, inputMapper, outputMapper)
+            public Fast(IEnumerable<TInput> inputs, Func<TInput, (decimal High, decimal Low, decimal Close)> inputMapper, int periodCount, int smaPeriodCount) : base(inputs, inputMapper)
             {
                 _rsv = new RawStochasticsValueByTuple(inputs.Select(inputMapper), periodCount);
 
@@ -24,27 +25,26 @@ namespace Trady.Analysis.Indicator
 
             public int SmaPeriodCount { get; }
 
-            protected override (decimal? K, decimal? D, decimal? J) ComputeByIndexImpl(IEnumerable<(decimal High, decimal Low, decimal Close)> mappedInputs, int index)
+            protected override (decimal? K, decimal? D, decimal? J) ComputeByIndexImpl(IReadOnlyList<(decimal High, decimal Low, decimal Close)> mappedInputs, int index)
             {
                 decimal? rsv = _rsv[index];
-                Func<int, decimal?> rsvFunc = i => _rsv[index - SmaPeriodCount + i + 1];
-                decimal? rsvAvg = index >= SmaPeriodCount - 1 ? Enumerable.Range(0, SmaPeriodCount).Average(i => rsvFunc(i)) : null;
+                decimal? rsvAvg = _rsv.Sma(SmaPeriodCount, index);
                 return (rsv, rsvAvg, 3 * rsv - 2 * rsvAvg);
             }
         }
 
         public class FastByTuple : Fast<(decimal High, decimal Low, decimal Close), (decimal? K, decimal? D, decimal? J)>
         {
-            public FastByTuple(IEnumerable<(decimal High, decimal Low, decimal Close)> inputs, int periodCount, int smaPeriodCount) 
-                : base(inputs, i => i, (i, otm) => otm, periodCount, smaPeriodCount)
+            public FastByTuple(IEnumerable<(decimal High, decimal Low, decimal Close)> inputs, int periodCount, int smaPeriodCount)
+                : base(inputs, i => i, periodCount, smaPeriodCount)
             {
             }
         }
 
-        public class Fast : Fast<Candle, AnalyzableTick<(decimal? K, decimal? D, decimal? J)>>
+        public class Fast : Fast<IOhlcv, AnalyzableTick<(decimal? K, decimal? D, decimal? J)>>
         {
-            public Fast(IEnumerable<Candle> inputs, int periodCount, int smaPeriodCount) 
-                : base(inputs, i => (i.High, i.Low, i.Close), (i, otm) => new AnalyzableTick<(decimal? K, decimal? D, decimal? J)>(i.DateTime, otm), periodCount, smaPeriodCount)
+            public Fast(IEnumerable<IOhlcv> inputs, int periodCount, int smaPeriodCount)
+                : base(inputs, i => (i.High, i.Low, i.Close), periodCount, smaPeriodCount)
             {
             }
         }

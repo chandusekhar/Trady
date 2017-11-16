@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>    
-    <TargetFramework>netcoreapp1.1</TargetFramework>    
+    <TargetFramework>netcoreapp2.0</TargetFramework>    
     <StartupObject />
   </PropertyGroup>
 
@@ -10,15 +10,20 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="MSTest.TestAdapter" Version="1.1.18" />
+    <PackageReference Include="MSTest.TestFramework" Version="1.1.18" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.0.0" />
-    <PackageReference Include="MSTest.TestAdapter" Version="1.1.14" />
-    <PackageReference Include="MSTest.TestFramework" Version="1.1.14" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Trady.Analysis\Trady.Analysis.csproj" />
-    <ProjectReference Include="..\Trady.Importer\Trady.Importer.csproj" />
     <ProjectReference Include="..\Trady.Core\Trady.Core.csproj" />
+    <ProjectReference Include="..\Trady.Importer\Trady.Importer.csproj" />
+    <ProjectReference Include="..\Trady.Importer.Csv\Trady.Importer.Csv.csproj" />
+    <ProjectReference Include="..\Trady.Importer.Google\Trady.Importer.Google.csproj" />
+    <ProjectReference Include="..\Trady.Importer.Quandl\Trady.Importer.Quandl.csproj" />
+    <ProjectReference Include="..\Trady.Importer.Stooq\Trady.Importer.Stooq.csproj" />
+    <ProjectReference Include="..\Trady.Importer.Yahoo\Trady.Importer.Yahoo.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,5 +35,4 @@
   <ItemGroup>
     <Service Include="{82a7f48d-3b50-4b1e-b82e-3ada8210c358}" />
   </ItemGroup>
-
 </Project>

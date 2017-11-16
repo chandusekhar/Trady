@@ -3,35 +3,35 @@ using System.Collections.Generic;
 using System.Linq;
 using Trady.Analysis.Infrastructure;
 using Trady.Core;
+using Trady.Core.Infrastructure;
 
 namespace Trady.Analysis.Indicator
 {
-    public class TrueRange<TInput, TOutput> : AnalyzableBase<TInput, (decimal High, decimal Low, decimal Close), decimal?, TOutput>
+    public class TrueRange<TInput, TOutput> : NumericAnalyzableBase<TInput, (decimal High, decimal Low, decimal Close), TOutput>
     {
-        public TrueRange(IEnumerable<TInput> inputs, Func<TInput, (decimal High, decimal Low, decimal Close)> inputMapper, Func<TInput, decimal?, TOutput> outputMapper) : base(inputs, inputMapper, outputMapper)
+        public TrueRange(IEnumerable<TInput> inputs, Func<TInput, (decimal High, decimal Low, decimal Close)> inputMapper) : base(inputs, inputMapper)
         {
         }
 
-        protected override decimal? ComputeByIndexImpl(IEnumerable<(decimal High, decimal Low, decimal Close)> mappedInputs, int index)
+        protected override decimal? ComputeByIndexImpl(IReadOnlyList<(decimal High, decimal Low, decimal Close)> mappedInputs, int index)
             => index > 0 ? new List<decimal?> {
-	            mappedInputs.ElementAt(index).High - mappedInputs.ElementAt(index).Low,
-	            Math.Abs(mappedInputs.ElementAt(index).High - mappedInputs.ElementAt(index - 1).Close),
-	            Math.Abs(mappedInputs.ElementAt(index).Low - mappedInputs.ElementAt(index - 1).Close) }.Max() : null;
-
+                mappedInputs[index].High - mappedInputs[index].Low,
+                Math.Abs(mappedInputs[index].High - mappedInputs[index - 1].Close),
+                Math.Abs(mappedInputs[index].Low - mappedInputs[index - 1].Close) }.Max() : null;
     }
 
     public class TrueRangeByTuple : TrueRange<(decimal High, decimal Low, decimal Close), decimal?>
     {
-        public TrueRangeByTuple(IEnumerable<(decimal High, decimal Low, decimal Close)> inputs) 
-            : base(inputs, i => i, (i, otm) => otm)
+        public TrueRangeByTuple(IEnumerable<(decimal High, decimal Low, decimal Close)> inputs)
+            : base(inputs, i => i)
         {
         }
     }
 
-    public class TrueRange : TrueRange<Candle, AnalyzableTick<decimal?>>
+    public class TrueRange : TrueRange<IOhlcv, AnalyzableTick<decimal?>>
     {
-        public TrueRange(IEnumerable<Candle> inputs) 
-            : base(inputs, i => (i.High, i.Low, i.Close), (i, otm) => new AnalyzableTick<decimal?>(i.DateTime, otm))
+        public TrueRange(IEnumerable<IOhlcv> inputs)
+            : base(inputs, i => (i.High, i.Low, i.Close))
         {
         }
     }
